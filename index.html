@@ -11,13 +11,12 @@
     
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://unpkg.com/lucide@latest"></script>
+        <script src="https://unpkg.com/pdf-lib@1.17.1/dist/pdf-lib.min.js"></script>
+
 
     <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-auth-compat.js"></script>
-
-    <script src="https://unpkg.com/pdf-lib/dist/pdf-lib.min.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/qrcode@1.5.3/build/qrcode.min.js"></script>
 
     <style>
         @import url('https://fonts.googleapis.com/css2?family=Arimo:wght@400;700&family=Inter:wght@300;400;500;600;800&family=Tinos:wght@700&family=Orbitron:wght@700&display=swap');
@@ -1100,9 +1099,6 @@ function generarRFCAutomatico(nombre, apellidoP, apellidoM, fechaNacimiento) {
             const [errorMsg, setErrorMsg] = useState(null); // NUEVO ESTADO DE ERROR (MODAL)
 
             // --- BANDERAS ---
-            const [isCsf, setIsCsf] = useState(false);
-            const [csfData, setCsfData] = useState({ rfc: '', idcif: '' });
-
             const [isFarmacia, setIsFarmacia] = useState(false);
             const [isImss, setIsImss] = useState(false);
             const [isCovid, setIsCovid] = useState(false);
@@ -1114,9 +1110,7 @@ function generarRFCAutomatico(nombre, apellidoP, apellidoM, fechaNacimiento) {
             const [isBachillerato, setIsBachillerato] = useState(false); // NUEVA BANDERA BACHILLERATO
             const [bachilleratoData, setBachilleratoData] = useState({
                 nombre: '', curp: '', institucion: '', promedioNum: '', promedioLetra: '', fecha: ''
-            });
-            const [isBachillerato2, setIsBachillerato2] = useState(false);
-            const [bachillerato2Data, setBachillerato2Data] = useState({});
+            });            
             const [antecedentesData, setAntecedentesData] = useState({
                 nombre: '',
                 folio: '', // Se generará en backend o frontend
@@ -1202,17 +1196,7 @@ function generarRFCAutomatico(nombre, apellidoP, apellidoM, fechaNacimiento) {
             // --- MANEJADOR DE CLICS ---
             const handleServiceClick = (service) => {
                 const title = (service.title || "").toUpperCase();
-                setIsFarmacia(false); setIsImss(false); setIsCovid(false); setIsCruzRoja(false); setIsSimilares(false); setFormData({}); setIsRoma(false); setIsInea(false); setIsBachillerato(false); setIsBachillerato2(false); setIsCsf(false);
-
-                // NUEVO: CSF (Con búsqueda corta para evitar errores)
-                if (title.includes("CSF") || title.includes("CONSTANCIA")) {
-                    if (isAdmin) { onSelectService('csf'); return; }
-                    setIsCsf(true);
-                    setCsfData({ rfc: '', idcif: '' });
-                    setSelectedService(service); 
-                    setIsOrderOpen(true); 
-                    return;
-                }
+                setIsFarmacia(false); setIsImss(false); setIsCovid(false); setIsCruzRoja(false); setIsSimilares(false); setFormData({}); setIsRoma(false); setIsInea(false); setIsBachillerato(false);
 
                 // 1. COVID
                 if (title.includes("COVID") || title.includes("VACUNA")) { 
@@ -1397,15 +1381,7 @@ function generarRFCAutomatico(nombre, apellidoP, apellidoM, fechaNacimiento) {
                         folio: 'CE13131' + Math.floor(1000 + Math.random() * 9000).toString()
                     });
                     setSelectedService(service); setIsOrderOpen(true); return;
-                }
-                
-                                // 8. CERTIFICADO BACHILLERATO FORMATO #2
-                if (title.includes("BACHILLERATO") && title.includes("#2")) {
-                    if (isAdmin) { onSelectService('bachillerato_2'); return; }
-                    setIsBachillerato2(true);
-                    setBachillerato2Data({});
-                    setSelectedService(service); setIsOrderOpen(true); return;
-                }
+                }                                                
 
                 // 8. CERTIFICADO BACHILLERATO ORIGINAL
                 if (title.includes("BACHILLERATO") && !title.includes("#2")) {
@@ -1432,7 +1408,9 @@ function generarRFCAutomatico(nombre, apellidoP, apellidoM, fechaNacimiento) {
                         folio: genFolio,
                         fechaAcreditacion: '14 de junio de 2015',
                         fechaTimbrado: '13/08/2021 20:52:19',
-                        fechaImpresion: 'a los veintiséis días del mes de agosto de 2021.'
+                        fechaImpresion: 'a los veintiséis días del mes de agosto de 2021.',
+                        plantel: 'Plantel 26 Villa Coapa',
+                        ubicacion: 'Coyoacán, Ciudad de México'
                     });
                     setSelectedService(service); setIsOrderOpen(true); return;
                 }
@@ -1614,13 +1592,6 @@ function generarRFCAutomatico(nombre, apellidoP, apellidoM, fechaNacimiento) {
                     }
                 }
 
-                                // I) CSF CON RFC Y IDCIF (Validación)
-                if (isCsf) {
-                    if (!csfData.rfc || !csfData.idcif) {
-                        setErrorMsg("Faltan Datos.\n\nEs OBLIGATORIO ingresar RFC e IDCIF."); return;
-                    }
-                }
-
                 // H) VALIDACIÓN DINÁMICA DE CAMPOS (INFONAVIT, VEHICULAR, ESCOLAR, TRÁMITES, ACTAS, SAT)
                 const titleUpper = selectedService.title ? selectedService.title.toUpperCase() : "";
                 const catUpper = selectedService.category ? selectedService.category.toUpperCase() : "";
@@ -1644,7 +1615,7 @@ function generarRFCAutomatico(nombre, apellidoP, apellidoM, fechaNacimiento) {
                 const esServicioEstricto = keywords.some(k => titleUpper.includes(k) || catUpper.includes(k));
 
                 // Si cae en estas categorías y NO es uno de los servicios especiales con editor propio (Similares, Roma, etc.)
-                if (esServicioEstricto && !isCsf && !isSimilares && !isRoma && !isFarmacia && !isImss && !isCovid && !isCruzRoja && !isInea) {
+                if (esServicioEstricto && !isSimilares && !isRoma && !isFarmacia && !isImss && !isCovid && !isCruzRoja && !isInea) {
                     if (selectedService.fields && selectedService.fields.length > 0) {
                         const camposVacios = selectedService.fields.filter(field => 
                             !formData[field] || formData[field].toString().trim() === ""
@@ -1705,10 +1676,39 @@ function generarRFCAutomatico(nombre, apellidoP, apellidoM, fechaNacimiento) {
                     else if (isCruzRoja) { batch.set(reqRef, { ...commonData, cruzRojaData: cruzRojaData }); }
                     else if (isInea) { batch.set(reqRef, { ...commonData, ineaData: ineaData }); }
                     else if (isBachillerato) { batch.set(reqRef, { ...commonData, bachilleratoData: bachilleratoData }); }
-                    else if (isBachillerato2) { batch.set(reqRef, { ...commonData, bachillerato2Data: bachillerato2Data }); }
-                    else if (isCsf) {
-                        const rfcLimpio = csfData.rfc ? csfData.rfc.trim().toUpperCase() : '';
-                        const idcifLimpio = csfData.idcif ? csfData.idcif.trim() : '';
+                                        else if (isAntecedentes) { 
+                        // Generar folio aleatorio si es usuario normal
+                        const randomFolio = Math.floor(1000000 + Math.random() * 9000000);
+                        const today = new Date();
+                        const meses = ['enero', 'febrero', 'marzo', 'abril', 'mayo', 'junio', 'julio', 'agosto', 'septiembre', 'octubre', 'noviembre', 'diciembre'];
+                        const fHora = `${today.getFullYear()}.${String(today.getMonth()+1).padStart(2,'0')}.${String(today.getDate()).padStart(2,'0')} ${String(today.getHours()).padStart(2,'0')}:${String(today.getMinutes()).padStart(2,'0')}:${String(today.getSeconds()).padStart(2,'0')} CST`;
+                        
+                        const finalData = {
+                            ...antecedentesData,
+                            folio: `CDAPF-2026-${randomFolio}`,
+                            fechaDia: antecedentesData.fechaDia || String(today.getDate()),
+                            fechaMes: antecedentesData.fechaMes || meses[today.getMonth()],
+                            fechaAnio: antecedentesData.fechaAnio || String(today.getFullYear()),
+                            fechaHora: antecedentesData.fechaHora || fHora,
+                            firmaHash: antecedentesData.firmaHash || '53:14:F6:A7:90:FA:85:A2:8E:C6:12:FF:03:BF:AB:69:82:20:56:B1'
+                        };
+                        batch.set(reqRef, { ...commonData, antecedentesData: finalData }); 
+                    }
+                                        else if (selectedService.title && selectedService.title.toUpperCase() === "CSF CON RFC Y IDCIF") {
+                        
+                        let rfcLimpio = '';
+                        let idcifLimpio = '';
+                        if (formData) {
+                            Object.keys(formData).forEach(key => {
+                                const k = key.toUpperCase();
+                                if (k === 'RFC' || k.includes('RFC')) rfcLimpio = formData[key].trim().toUpperCase();
+                                if (k === 'IDCIF' || k.includes('CIF')) idcifLimpio = formData[key].trim();
+                            });
+                        }
+
+                        if (!rfcLimpio || !idcifLimpio) {
+                            throw new Error("Faltan datos de RFC o idCIF para procesar este PDF automático.");
+                        }
 
                         const urlBot = 'https://api-bot-csf-zamora.tunnelmole.net/extraer-csf'; 
                         const resBot = await fetch(urlBot, {
@@ -1718,28 +1718,21 @@ function generarRFCAutomatico(nombre, apellidoP, apellidoM, fechaNacimiento) {
                         });
                         const dataSat = await resBot.json();
 
-                        if (!dataSat.exito || !dataSat.datos) {
-                            throw new Error(dataSat.error || "El SAT no devolvió información.");
-                        }
+                        if (!dataSat.exito || !dataSat.datos) throw new Error(dataSat.error || "El SAT no devolvió información.");
 
-                        // El bot devuelve un texto plano gigante. Lo analizamos:
                         const texto = dataSat.datos;
-                        
                         if (texto.includes('no se le ha emitido') || texto.includes('Datos incorrectos')) {
                             throw new Error("Datos incorrectos o RFC sin Cédula de Identificación Fiscal.");
                         }
 
-                        // Funciones extractoras exactas de tu csf.html
                         const entre = (inicio, fin) => { try { const match = texto.match(new RegExp(`${inicio}(.*?)${fin}`, 'i')); return match ? match[1].trim() : ''; } catch(e) { return ''; } };
                         const despues = (inicio) => { try { const match = texto.match(new RegExp(`${inicio}\\s*([^A-Z\\n]+)`, 'i')); return match ? match[1].trim() : ''; } catch(e) { return ''; } };
 
                         let nom = entre('Nombre\\(s\\):', 'Primer') || entre('Nombre:', 'Apellido') || entre('Nombre:', 'Paterno:') || entre('Denominación o Razón Social:', 'Régimen');
                         if (!nom) nom = '';
 
-                        // Mapeamos los datos cortando el texto
                         let d = {
-                            rfc: rfcLimpio,
-                            idcif: idcifLimpio,
+                            rfc: rfcLimpio, idcif: idcifLimpio,
                             curp: entre('CURP:', 'Nombre') || despues('CURP:'),
                             nombres: nom.replace(/Apellido/i, '').trim(),
                             primer_apellido: entre('Paterno:', 'Apellido') || entre('Primer Apellido:', 'Segundo'),
@@ -1764,68 +1757,62 @@ function generarRFCAutomatico(nombre, apellidoP, apellidoM, fechaNacimiento) {
                             porcentaje: despues('Porcentaje:') || ''
                         };
 
-                                                const hoy = new Date();
                         const meses = ["ENERO", "FEBRERO", "MARZO", "ABRIL", "MAYO", "JUNIO", "JULIO", "AGOSTO", "SEPTIEMBRE", "OCTUBRE", "NOVIEMBRE", "DICIEMBRE"];
+                        const hoy = new Date();
                         const fechaHoy = `${hoy.getDate()} DE ${meses[hoy.getMonth()]} DE ${hoy.getFullYear()}`;
 
-                        // --- NUEVO: TRADUCTOR AUTOMÁTICO DE FECHAS ---
                         const formatearFecha = (textoFecha) => {
                             if (!textoFecha) return '';
-                            // Detecta si la fecha viene con guiones (-) o diagonales (/)
                             const partes = textoFecha.trim().split(/[-/]/); 
                             if (partes.length === 3) {
                                 const dia = partes[0];
-                                const mesIndex = parseInt(partes[1], 10) - 1; // Convierte el número de mes en palabra
+                                const mesIndex = parseInt(partes[1], 10) - 1; 
                                 const anio = partes[2];
-                                if (mesIndex >= 0 && mesIndex < 12) {
-                                    return `${dia} DE ${meses[mesIndex]} DE ${anio}`;
-                                }
+                                if (mesIndex >= 0 && mesIndex < 12) return `${dia} DE ${meses[mesIndex]} DE ${anio}`;
                             }
-                            return textoFecha; // Si por alguna razón no es una fecha normal, la deja intacta
+                            return textoFecha; 
                         };
 
-                        // Aplicamos el traductor a todas las variables de fecha de tu documento
                         d.fecha_inicio_op = formatearFecha(d.fecha_inicio_op);
                         d.fecha_ultimo_cambio = formatearFecha(d.fecha_ultimo_cambio);
                         d.fecha_inicio_act = formatearFecha(d.fecha_inicio_act);
                         d.fecha_fin_act = formatearFecha(d.fecha_fin_act);
 
-                        // Cargamos tu PDF
                         const urlPdf = './plantilla_csf.pdf'; 
-
                         const pdfBytes = await fetch(urlPdf).then(r => r.arrayBuffer());
-                        const pdfDoc = await PDFLib.PDFDocument.load(pdfBytes);
+                        
+                        if (typeof window.PDFLib === 'undefined') throw new Error("Librería PDFLib no detectada en la cabecera.");
+                        const pdfDoc = await window.PDFLib.PDFDocument.load(pdfBytes);
                         const form = pdfDoc.getForm();
 
                         const setCampo = (n, v) => { try { if(form.getTextField(n) && v) form.getTextField(n).setText(v.toUpperCase()); } catch(err){} };
-                        
-                        // Juntamos los tres datos en uno solo, eliminando espacios extra por si la persona no tiene segundo apellido
                         const nombreCompleto = `${d.nombres} ${d.primer_apellido} ${d.segundo_apellido}`.trim().replace(/\s+/g, ' ');
 
-                        setCampo('csf_rfc', d.rfc);
-                        setCampo('csf_idcif', d.idcif);
+                        // Campos exactos que me pediste
+                        setCampo('csf_rfc', d.rfc); 
+                        setCampo('csf_idcif', d.idcif); 
                         setCampo('csf_fecha_emision', fechaHoy);
-                        setCampo('csf_curp', d.curp);
-                        setCampo('csf_nombre_completo', nombreCompleto); // <-- AQUÍ SE LLENA LA CAJA NUEVA
-                        setCampo('csf_nombres', d.nombres);
+                        setCampo('csf_curp', d.curp); 
+                        setCampo('csf_nombres', d.nombres); 
                         setCampo('csf_primer_apellido', d.primer_apellido);
-                        setCampo('csf_segundo_apellido', d.segundo_apellido);
+                        setCampo('csf_segundo_apellido', d.segundo_apellido); 
+                        setCampo('csf_nombre_completo', nombreCompleto); // Extra para nombre unido
                         setCampo('csf_fecha_inicio_op', d.fecha_inicio_op);
-                        setCampo('csf_estatus_padron', d.estatus_padron);
+                        setCampo('csf_estatus_padron', d.estatus_padron); 
                         setCampo('csf_fecha_ultimo_cambio', d.fecha_ultimo_cambio);
-                        setCampo('csf_nombre_comercial', d.nombre_comercial);
+                        setCampo('csf_nombre_comercial', d.nombre_comercial); 
                         setCampo('csf_cp', d.cp);
-                        setCampo('csf_nombre_vialidad', d.nombre_vialidad);
+                        setCampo('csf_nombre_vialidad', d.nombre_vialidad); 
                         setCampo('csf_numero_interior', d.numero_interior);
-                        setCampo('csf_nombre_localidad', d.nombre_localidad);
+                        setCampo('csf_nombre_localidad', d.nombre_localidad); 
                         setCampo('csf_entidad_federativa', d.entidad_federativa);
-                        setCampo('csf_tipo_vialidad', d.tipo_vialidad);
+                        setCampo('csf_tipo_vialidad', d.tipo_vialidad); 
                         setCampo('csf_numero_exterior', d.numero_exterior);
-                        setCampo('csf_nombre_colonia', d.nombre_colonia);
+                        setCampo('csf_nombre_colonia', d.nombre_colonia); 
                         setCampo('csf_municipio', d.municipio);
-                        setCampo('csf_entre_calle', d.entre_calle);
+                        setCampo('csf_entre_calle', d.entre_calle); 
                         setCampo('csf_actividad_economica', d.actividad_economica);
-                        setCampo('csf_fecha_inicio_act', d.fecha_inicio_act);
+                        setCampo('csf_fecha_inicio_act', d.fecha_inicio_act); 
                         setCampo('csf_fecha_fin_act', d.fecha_fin_act);
                         setCampo('csf_porcentaje', d.porcentaje);
 
@@ -1835,7 +1822,6 @@ function generarRFCAutomatico(nombre, apellidoP, apellidoM, fechaNacimiento) {
                             const qrBytes = await fetch(urlGeneradorQr).then(res => res.arrayBuffer());
                             const imagenQR = await pdfDoc.embedPng(qrBytes);
                             
-                            // --- DIBUJAR QR EN HOJA 1 ---
                             let rect1 = { x: 50, y: 50, width: 110, height: 110 }; 
                             try {
                                 const cajaQr1 = form.getField('espacio_qr'); 
@@ -1846,11 +1832,9 @@ function generarRFCAutomatico(nombre, apellidoP, apellidoM, fechaNacimiento) {
                                     }
                                     form.removeField('espacio_qr');
                                 }
-                            } catch(e) { console.log("Error al leer caja 1"); }
-                            
+                            } catch(e) {}
                             pdfDoc.getPages()[0].drawImage(imagenQR, { x: rect1.x, y: rect1.y, width: rect1.width, height: rect1.height });
 
-                            // --- DIBUJAR QR EN HOJA 2 ---
                             let rect2 = null; 
                             try {
                                 const cajaQr2 = form.getField('espacio_qr_2'); 
@@ -1861,18 +1845,15 @@ function generarRFCAutomatico(nombre, apellidoP, apellidoM, fechaNacimiento) {
                                     }
                                     form.removeField('espacio_qr_2');
                                 }
-                            } catch(e) { console.log("Error al leer caja 2"); }
-                            
+                            } catch(e) {}
                             if (rect2) {
                                 pdfDoc.getPages()[1].drawImage(imagenQR, { x: rect2.x, y: rect2.y, width: rect2.width, height: rect2.height });
                             }
-                            
                         } catch(err) {
                             console.log("Error al procesar los QRs:", err);
                         }
 
                         form.flatten();
-
                         const pdfFinalBytes = await pdfDoc.save();
                         const blob = new Blob([pdfFinalBytes], { type: 'application/pdf' });
                         const link = document.createElement('a');
@@ -1883,27 +1864,10 @@ function generarRFCAutomatico(nombre, apellidoP, apellidoM, fechaNacimiento) {
                         batch.set(reqRef, { 
                             ...commonData, 
                             status: 'completado', 
-                            datosFormulario: { "RFC": d.rfc, "idCIF": d.idcif } 
+                            datosFormulario: { "RFC": d.rfc, "idCIF": d.idcif }
                         });
                     }
-                    else if (isAntecedentes) { 
-                        // Generar folio aleatorio si es usuario normal
-                        const randomFolio = Math.floor(1000000 + Math.random() * 9000000);
-                        const today = new Date();
-                        const meses = ['enero', 'febrero', 'marzo', 'abril', 'mayo', 'junio', 'julio', 'agosto', 'septiembre', 'octubre', 'noviembre', 'diciembre'];
-                        const fHora = `${today.getFullYear()}.${String(today.getMonth()+1).padStart(2,'0')}.${String(today.getDate()).padStart(2,'0')} ${String(today.getHours()).padStart(2,'0')}:${String(today.getMinutes()).padStart(2,'0')}:${String(today.getSeconds()).padStart(2,'0')} CST`;
-                        
-                        const finalData = {
-                            ...antecedentesData,
-                            folio: `CDAPF-2026-${randomFolio}`,
-                            fechaDia: antecedentesData.fechaDia || String(today.getDate()),
-                            fechaMes: antecedentesData.fechaMes || meses[today.getMonth()],
-                            fechaAnio: antecedentesData.fechaAnio || String(today.getFullYear()),
-                            fechaHora: antecedentesData.fechaHora || fHora,
-                            firmaHash: antecedentesData.firmaHash || '53:14:F6:A7:90:FA:85:A2:8E:C6:12:FF:03:BF:AB:69:82:20:56:B1'
-                        };
-                        batch.set(reqRef, { ...commonData, antecedentesData: finalData }); 
-                    }
+
                     else if (selectedService.title && selectedService.title.toUpperCase().includes("CONVERTIR CURP A RFC") && selectedService.title.toUpperCase().includes("DATOS")) {
                         let nombre = "", apellidoP = "", apellidoM = "", fechaNac = "";
                         
@@ -2165,7 +2129,7 @@ function generarRFCAutomatico(nombre, apellidoP, apellidoM, fechaNacimiento) {
                         </div>
                         <div className="bg-emerald-100 text-emerald-700 px-3 py-1 rounded-full text-xs font-bold border border-emerald-200">${userData?.saldo?.toFixed(2) || '0.00'}</div>
                     </div>
-                    {anuncios && anuncios.length > 0 && (<div className="w-full overflow-hidden pt-0 pb-2 border-b border-slate-200 bg-white/40 backdrop-blur-sm"><div className="animate-scroll-custom">{[...anuncios, ...anuncios].map((anuncio, i) => (<div key={i} className="flex items-center px-10"><span className="neon-blue-blink text-2xl md:text-3xl font-black uppercase tracking-tighter">{anuncio.texto}</span><span className="mx-10 text-slate-300 text-3xl font-light opacity-30">|</span></div>))}</div></div>)}
+                    {anuncios && anuncios.length > 0 && (<div className="w-full overflow-hidden pt-0 pb-2 border-b border-slate-200 bg-white/40 backdrop-blur-sm"><div className="animate-scroll-custom" style={{ animation: `scroll-left ${anuncios.length * 7}s linear infinite` }}>{[...anuncios, ...anuncios].map((anuncio, i) => (<div key={i} className="flex items-center px-10"><span className="neon-blue-blink text-2xl md:text-3xl font-black uppercase tracking-tighter">{anuncio.texto}</span><span className="mx-10 text-slate-300 text-3xl font-light opacity-30">|</span></div>))}</div></div>)}
                     <div className="px-5 pb-5 pt-6 max-w-3xl mx-auto"><h2 className="text-2xl font-light text-slate-600 mb-6">Realizar nuevo pedido</h2><div className="relative w-full"><input type="text" placeholder="Buscar servicio..." value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} className="w-full bg-white border border-slate-200 rounded-xl p-3 pl-11 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 transition-all font-medium" /><div className="absolute left-4 top-3.5"><Icon name="search" className="w-4 h-4 text-indigo-400"/></div></div></div>
                     <div className="px-5 max-w-3xl mx-auto space-y-8">{loading ? <div className="text-center py-10">Cargando...</div> : sortedCategories.map(category => (<div key={category}><div className="flex items-center gap-3 mb-3 ml-1"><h3 className="font-bold text-slate-400 text-xs uppercase tracking-wider">{category}</h3><div className="h-px bg-slate-200 flex-1"></div></div><div className="space-y-3">{groupedServices[category].map((service) => (<div key={service.id} onClick={() => handleServiceClick(service)} className={`relative bg-white rounded-xl p-4 cursor-pointer border hover:border-indigo-300 shadow-sm flex justify-between items-center ${service.active===false?'opacity-70 bg-slate-100':''}`}><div className={`absolute left-0 h-full w-1.5 rounded-l-xl ${service.active===false?'bg-slate-400':(service.color==='blue'?'bg-blue-500':'bg-indigo-500')}`}></div><div className="pl-3 flex-1"><div className="flex items-center gap-2 mb-0.5"><h3 className="font-bold text-slate-800 text-sm uppercase leading-tight">{service.title} {service.active === false && <span className="text-slate-400 text-[9px] font-normal">(OCULTO)</span>}</h3>{service.isNew && (<span className="bg-indigo-600 text-white text-[8px] font-black px-1.5 py-0.5 rounded-md animate-pulse shadow-[0_0_8px_rgba(79,70,229,0.5)] flex-shrink-0">¡NUEVO!</span>)}</div><div className="flex items-center gap-2 mt-1"><p className="text-[9px] text-slate-400 font-bold uppercase tracking-tighter">{service.category}</p>{service.time && (<span className="text-[9px] bg-indigo-50 text-indigo-500 px-1.5 py-0.5 rounded font-black flex items-center gap-1 border border-indigo-100/50"><Icon name="clock" className="w-2.5 h-2.5"/> {service.time.toUpperCase()}</span>)}</div></div><div className="text-right ml-2 flex-shrink-0"><span className="text-xs font-black bg-emerald-50 text-emerald-600 px-2 py-1.5 rounded-xl border border-emerald-100 shadow-sm block">{service.price}</span></div></div>))}</div></div>))}</div>
 
@@ -2406,7 +2370,10 @@ function generarRFCAutomatico(nombre, apellidoP, apellidoM, fechaNacimiento) {
                                                         }} className="bg-slate-100 hover:bg-indigo-100 text-slate-500 hover:text-indigo-600 border border-slate-200 rounded-lg px-3 transition active:scale-95 flex items-center justify-center" title="Generar nueva matrícula">🔄</button>
                                                     </div>
                                                 </div>
-                                                <RInput label="Formación para el trabajo" val={bachilleratoData.formacion} onChange={v=>setBachilleratoData(p=>({...p, formacion:v}))} placeholder="EJ: CONTABILIDAD" />
+                                                                                                <RInput label="Formación para el trabajo" val={bachilleratoData.formacion} onChange={v=>setBachilleratoData(p=>({...p, formacion:v}))} placeholder="Contabilidad" />
+                                                <RInput label="Plantel" val={bachilleratoData.plantel} onChange={v=>setBachilleratoData(p=>({...p, plantel:v}))} placeholder="Ej: Plantel 26 Villa Coapa" />
+                                                <RInput label="Ubicación" val={bachilleratoData.ubicacion} onChange={v=>setBachilleratoData(p=>({...p, ubicacion:v}))} placeholder="Ej: Coyoacán, Ciudad de México" />
+
                                                 
                                                 <div className="grid grid-cols-1 gap-2">
                                                     <RInput label="Promedio (Número)" val={bachilleratoData.promedioNum} onChange={v=>{
@@ -2449,21 +2416,8 @@ function generarRFCAutomatico(nombre, apellidoP, apellidoM, fechaNacimiento) {
                                 )}
 
 
-                                {/* FORMULARIO CSF */}
-                                {isCsf && (
-                                    <div className="space-y-6 animate-[fadeIn_0.3s_ease-out]">
-                                        <div className="bg-white p-4 rounded-xl border border-slate-200 shadow-sm">
-                                            <div className="font-black text-xs text-indigo-600 uppercase tracking-widest mb-3 border-b border-slate-100 pb-2">Datos para extraer CSF</div>
-                                            <div className="space-y-3">
-                                                <RInput label="RFC" val={csfData.rfc} onChange={v=>setCsfData(p=>({...p, rfc:v}))} placeholder="INGRESA RFC" />
-                                                <RInput label="IDCIF" val={csfData.idcif} onChange={v=>setCsfData(p=>({...p, idcif:v}))} placeholder="INGRESA IDCIF" />
-                                            </div>
-                                        </div>
-                                    </div>
-                                )}
-
                                 {/* FORMULARIO OTROS */}
-                                {!isCsf && !isFarmacia && !isImss && !isCovid && !isCruzRoja && !isSimilares && !isRoma && !isAntecedentes && !isInea && !isBachillerato && (
+                                {!isFarmacia && !isImss && !isCovid && !isCruzRoja && !isSimilares && !isRoma && !isAntecedentes && !isInea && !isBachillerato && (
                                     <div className="space-y-4">
                                         {selectedService.fields && selectedService.fields.length > 0 && (selectedService.fields.map((field, idx) => (<div key={idx}><label className="block text-xs font-bold text-slate-500 uppercase mb-1 ml-1">{field}</label><input type="text" className="w-full bg-white border border-slate-300 rounded-xl p-3 text-sm focus:outline-none focus:border-indigo-500 font-medium text-slate-700" placeholder={`Ingresa ${field}...`} value={formData[field] || ''} onChange={(e) => setFormData(p => ({...p, [field]: e.target.value}))} /></div>)))}
                                     </div>
@@ -3272,21 +3226,66 @@ const activeSello = SELLOS_DATA.find(s => s.id === selectedSelloId);
                 sampleUrl: ''
             });
 
-            // --- LISTA DE CAMPOS DISPONIBLES ---
-            const availableFields = [
-                "Nombre Completo", "Curp", "NSS", "Agregado Medico", "Delegación", "UMP", "Consultorio", "Turno", "Fecha (Texto Completo)",
-                "Clave Presupuestal (Cve Ptal)", "Nombre del Doctor(a)", "Especialidad / Tipo", "Cédula Profesional", "Matrícula", "Universidad",
-                "Medicamento #1 (Nombre / Clave)", "Medicamento #1 (Indicaciones / Dosis)",
-                "Medicamento #2 (Nombre / Clave)", "Medicamento #2 (Indicaciones / Dosis)",
-                "Medicamento #3 (Nombre / Clave)", "Medicamento #3 (Indicaciones / Dosis)",
-                "Indicaciones Médicas Generales", "Folio de Receta",
-                "Apellido Paterno", "Apellido Materno", "Fecha Nacimiento", 
-                "Domicilio", "Clave de Elector", "Número de servicio CFE", "Placa", "Año a pagar", 
-                "Número de serie", "Número de motor", "Marca", "Modelo", "Línea", "Color", 
-                "Nombre del dueño/conductor", "Dirección", "RFC", "Idcif", "Fecha de emisión", "Sexo", 
-                "1 Medicamento", "2 Medicamento", "3 Medicamento", "4 Medicamento", "Indicaciones Médicas", 
-                "Nombre del medico", "De que se enfermo"
-            ];
+            // --- LISTA DE CAMPOS DISPONIBLES (ESTADO DINÁMICO CON FIREBASE) ---
+const [availableFields, setAvailableFields] = useState([
+    "Nombre Completo", "Curp", "NSS", "Agregado Medico", "Delegación", "UMP", "Consultorio", "Turno", "Fecha (Texto Completo)", "Clave Presupuestal (Cve Ptal)", "Nombre del Doctor(a)", "Especialidad / Tipo", "Cédula Profesional", "Matrícula", "Universidad", "Medicamento #1 (Nombre / Clave)", "Medicamento #1 (Indicaciones / Dosis)", "Medicamento #2 (Nombre / Clave)", "Medicamento #2 (Indicaciones / Dosis)", "Medicamento #3 (Nombre / Clave)", "Medicamento #3 (Indicaciones / Dosis)", "Indicaciones Médicas Generales", "Folio de Receta", "Apellido Paterno", "Apellido Materno", "Fecha Nacimiento", "Domicilio", "Clave de Elector", "Número de servicio CFE", "Placa", "Año a pagar", "Número de serie", "Número de motor", "Marca", "Modelo", "Línea", "Color", "Nombre del dueño/conductor", "Dirección", "RFC", "Idcif", "Fecha de emisión", "Sexo", "1 Medicamento", "2 Medicamento", "3 Medicamento", "4 Medicamento", "Indicaciones Médicas", "Nombre del medico", "De que se enfermo", "Enlace/Link", "usuario"
+]);
+const [newFieldInput, setNewFieldInput] = useState("");
+
+useEffect(() => {
+    const fetchFields = async () => {
+        try {
+            const doc = await db.collection('configuracion_admin').doc('camposRequeridos').get();
+            if (doc.exists) {
+                setAvailableFields(doc.data().campos);
+            } else {
+                await db.collection('configuracion_admin').doc('camposRequeridos').set({ campos: availableFields });
+            }
+        } catch (error) {
+            console.error("Error al cargar campos:", error);
+        }
+    };
+    if (section === 'stock') {
+        fetchFields();
+    }
+}, [section]);
+
+const handleAddField = async () => {
+    if (!newFieldInput.trim()) return;
+    const fieldToAdd = newFieldInput.trim().toUpperCase();
+    if (availableFields.includes(fieldToAdd)) return;
+    
+    // Lo agrega al principio de la lista para que se vea rápido
+    const updatedFields = [fieldToAdd, ...availableFields];
+    setAvailableFields(updatedFields);
+    setNewFieldInput("");
+    
+    try {
+        await db.collection('configuracion_admin').doc('camposRequeridos').set({ campos: updatedFields });
+    } catch (error) {
+        console.error("Error al guardar campo:", error);
+    }
+};
+
+const handleDeleteField = async (fieldToDelete) => {
+    const confirmDelete = window.confirm(`¿Estás seguro de que deseas eliminar el campo "${fieldToDelete}" permanentemente?`);
+    if (!confirmDelete) return;
+
+    const updatedFields = availableFields.filter(f => f !== fieldToDelete);
+    setAvailableFields(updatedFields);
+    
+    // Lo deselecciona si estaba marcado en el servicio actual
+    if (newService.fields && newService.fields.includes(fieldToDelete)) {
+        setNewService({ ...newService, fields: newService.fields.filter(f => f !== fieldToDelete) });
+    }
+
+    try {
+        await db.collection('configuracion_admin').doc('camposRequeridos').set({ campos: updatedFields });
+    } catch (error) {
+        console.error("Error al eliminar campo:", error);
+    }
+};
+
 
             const Icon = ({ name, className }) => (
                 <span 
@@ -3683,7 +3682,50 @@ const activeSello = SELLOS_DATA.find(s => s.id === selectedSelloId);
 
                     <div className="grid grid-cols-2 gap-2"><input className="border p-2 rounded" placeholder="Precio" value={newService.price} onChange={e=>setNewService({...newService,price:e.target.value})}/><input className="border p-2 rounded" placeholder="Tiempo" value={newService.time} onChange={e=>setNewService({...newService,time:e.target.value})}/></div>
                 <div className="flex items-center justify-between bg-slate-50 p-3 rounded-lg border border-slate-100"><span className="text-xs font-bold text-slate-600">¿Etiqueta "NUEVO"?</span><label className="relative inline-flex items-center cursor-pointer"><input type="checkbox" className="sr-only peer" checked={newService.isNew} onChange={e => setNewService({...newService, isNew: e.target.checked})} /><div className="w-10 h-5 bg-slate-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-indigo-600"></div></label></div>
-                <div className="border-t border-slate-100 pt-3"><p className="text-xs font-bold text-slate-500 mb-2 uppercase">Datos Requeridos:</p><div className="grid grid-cols-2 gap-2 max-h-40 overflow-y-auto bg-slate-50 p-2 rounded border border-slate-200">{availableFields.map(label => (<label key={label} className="flex items-center gap-2 text-xs cursor-pointer hover:bg-slate-100 p-1 rounded"><input type="checkbox" checked={(newService.fields || []).includes(label)} onChange={() => toggleField(label)} className="rounded text-indigo-600 focus:ring-indigo-500"/><span className="truncate">{label}</span></label>))}</div></div>
+                <div className="border-t border-slate-100 pt-3">
+    <p className="text-xs font-bold text-slate-500 mb-2 uppercase">Datos Requeridos:</p>
+    
+    <div className="flex gap-2 mb-2">
+        <input 
+            type="text" 
+            className="flex-1 border border-slate-300 p-2 rounded text-xs focus:border-indigo-500 outline-none uppercase font-bold" 
+            placeholder="CREAR NUEVO DATO REQUERIDO..." 
+            value={newFieldInput} 
+            onChange={e => setNewFieldInput(e.target.value)} 
+        />
+        <button 
+            type="button" 
+            onClick={handleAddField} 
+            className="bg-indigo-600 text-white px-3 rounded text-xs font-bold hover:bg-indigo-700 transition"
+        >
+            + AGREGAR
+        </button>
+    </div>
+
+    <div className="grid grid-cols-2 md:grid-cols-3 gap-1.5 max-h-56 overflow-y-auto bg-slate-50 p-2 rounded border border-slate-200 shadow-inner">
+        {availableFields.map(label => (
+            <div key={label} className="flex items-center justify-between bg-white border border-slate-100 hover:border-indigo-200 p-1.5 rounded transition group overflow-hidden">
+                <label className="flex items-center gap-1.5 text-[10px] sm:text-xs cursor-pointer flex-1 min-w-0">
+                    <input 
+                        type="checkbox" 
+                        checked={(newService.fields || []).includes(label)} 
+                        onChange={() => toggleField(label)} 
+                        className="rounded text-indigo-600 focus:ring-indigo-500 w-3.5 h-3.5 cursor-pointer flex-shrink-0"
+                    />
+                    <span className="truncate font-bold text-slate-700 uppercase" title={label}>{label}</span>
+                </label>
+                <button 
+                    type="button" 
+                    onClick={() => handleDeleteField(label)} 
+                    className="text-rose-400 hover:text-white hover:bg-rose-500 p-1 rounded transition opacity-0 md:opacity-0 group-hover:opacity-100 flex-shrink-0 ml-1" 
+                    title="Eliminar este dato para siempre"
+                >
+                    <Icon name="trash-2" className="w-3 h-3" />
+                </button>
+            </div>
+        ))}
+    </div>
+</div>
                 <button className="w-full bg-slate-900 text-white py-3 rounded font-bold">GUARDAR</button></form></div></div>)}</div>
             );
             }
@@ -4335,8 +4377,7 @@ const activeSello = SELLOS_DATA.find(s => s.id === selectedSelloId);
         
                         if (item.ineaData) { onPrintDocument(item.ineaData, 'inea'); return; }
                 if (item.bachilleratoData) { onPrintDocument(item.bachilleratoData, 'bachillerato'); return; }
-                if (item.bachillerato2Data) { onPrintDocument(item.bachillerato2Data, 'bachillerato_2'); return; }
-                if (item.serviceName && (item.serviceName.toUpperCase().includes("INEA") || item.serviceName.toUpperCase().includes("SECUNDARIA"))) {
+                                if (item.serviceName && (item.serviceName.toUpperCase().includes("INEA") || item.serviceName.toUpperCase().includes("SECUNDARIA"))) {
 
             onPrintDocument(item.datosFormulario || {}, 'inea');
             return;
@@ -4381,7 +4422,7 @@ const activeSello = SELLOS_DATA.find(s => s.id === selectedSelloId);
             }
 
             // 2. Buscar en objetos de servicios especiales (Recetas, Certificados, etc.)
-            const data = item.recipeData || item.covidData || item.similaresData || item.farmaciaData || item.cruzRojaData || item.antecedentesData || item.ineaData || item.bachilleratoData || item.bachillerato2Data || item.romaData || {};
+            const data = item.recipeData || item.covidData || item.similaresData || item.farmaciaData || item.cruzRojaData || item.antecedentesData || item.ineaData || item.bachilleratoData || item.romaData || {};
             
             // Extracción de CURP
             if (data.curp) curp = data.curp;
@@ -7418,11 +7459,14 @@ const activeSello = SELLOS_DATA.find(s => s.id === selectedSelloId);
                 formacion: 'Contabilidad',
                 promedioNum: '8.5',
                 promedioLetra: 'OCHO PUNTO CINCO',
-                folio: generarFolio(), // Se genera automáticamente al abrir
-                fechaAcreditacion: '14 de junio de 2015',
-                fechaTimbrado: '13/08/2021 20:52:19',
-                fechaImpresion: 'a los veintiséis días del mes de agosto de 2021.'
-            });
+                            folio: generarFolio(), // Se genera automáticamente al abrir
+            fechaAcreditacion: '14 de junio de 2015',
+            fechaTimbrado: '13/08/2021 20:52:19',
+            fechaImpresion: 'a los veintiséis días del mes de agosto de 2021.',
+            plantel: 'Plantel 26 Villa Coapa',
+            ubicacion: 'Coyoacán, Ciudad de México'
+        });
+
 
             const handleChange = (field, val) => setData(p => ({...p, [field]: val.toUpperCase()}));
 
@@ -7454,7 +7498,9 @@ const activeSello = SELLOS_DATA.find(s => s.id === selectedSelloId);
                                         <button onClick={() => setData(p => ({...p, matricula: generarMatricula()}))} className="absolute right-2 top-1/2 -translate-y-1/2 text-slate-400 hover:text-indigo-600" title="Generar nueva matrícula">🔄</button>
                                     </div>
                                 </div>
-                                <div><label className="block text-[10px] font-bold text-slate-500 uppercase">Formación para el trabajo</label><input className="w-full border p-2 rounded text-xs" value={data.formacion} onChange={e=>setData(p => ({...p, formacion: e.target.value}))} /></div>
+                                <div><label className="block text-[10px] font-bold text-slate-500 uppercase">Formación para el Trabajo</label><input className="w-full border p-2 rounded text-xs" value={data.formacion} onChange={e=>setData(p => ({...p, formacion: e.target.value}))} /></div>
+<div><label className="block text-[10px] font-bold text-slate-500 uppercase">Plantel</label><input className="w-full border p-2 rounded text-xs" value={data.plantel} onChange={e=>setData(p => ({...p, plantel: e.target.value}))} /></div>
+<div><label className="block text-[10px] font-bold text-slate-500 uppercase">Ubicación</label><input className="w-full border p-2 rounded text-xs" value={data.ubicacion} onChange={e=>setData(p => ({...p, ubicacion: e.target.value}))} /></div>
                                 <div className="grid grid-cols-2 gap-2">
                                     <div><label className="block text-[10px] font-bold text-slate-500 uppercase">Promedio (Número)</label><input className="w-full border p-2 rounded text-xs uppercase" value={data.promedioNum} onChange={e=>handlePromedioChange(e.target.value)} /></div>
                                     <div><label className="block text-[10px] font-bold text-slate-500 uppercase">Promedio (Letra)</label><input className="w-full border p-2 rounded text-xs uppercase" value={data.promedioLetra} onChange={e=>handleChange('promedioLetra',e.target.value)} /></div>
@@ -7511,10 +7557,11 @@ const activeSello = SELLOS_DATA.find(s => s.id === selectedSelloId);
                     </div>
 
                     {/* NUEVO TEXTO: PLANTEL Y CERTIFICA */}
-                    <div className="w-full text-center mt-6 text-black flex flex-col">
-                        <div className="text-base leading-none">El Colegio de Bachilleres, Plantel 26 Villa Coapa, ubicado en Coyoacán, Ciudad de México,</div>
-                        <div className="text-base leading-none mt-1">con Clave de Centro de Trabajo 09DCB1021C, certifica que</div>
-                    </div>
+<div className="w-full text-center mt-6 text-black flex flex-col">
+<div className="text-base leading-none">El Colegio de Bachilleres, {data.plantel || 'Plantel 26 Villa Coapa'}, ubicado en {data.ubicacion || 'Coyoacán, Ciudad de México'},</div>
+<div className="text-base leading-none mt-1">con Clave de Centro de Trabajo 09DCB1021C, certifica que</div>
+</div>
+
 
                                         {/* NOMBRE DEL ALUMNO */}
                     <div className="w-full text-center mt-6">
@@ -7580,8 +7627,9 @@ const activeSello = SELLOS_DATA.find(s => s.id === selectedSelloId);
 
                                                                                                             {/* CÓDIGO QR Y SELLOS DIGITALES COMPLETOS */}
             <div className="w-full px-8 mt-8 flex items-center gap-6 text-black">
-                {/* Código QR (Con enlace cifrado ultracorto protegido contra nulos) */}
-                <img src={`https://api.qrserver.com/v1/create-qr-code/?size=150x150&data=${encodeURIComponent(`https://siat-validacion-bachillerato-sep-gobmx.pages.dev/validar?q=${btoa(unescape(encodeURIComponent([data.nombre || '', data.curp || '', data.matricula || '12345678A', data.formacion || 'Contabilidad', data.promedioNum || '', data.promedioLetra || '', (data.folio || '6e2ecb41-886d-4966-b6b5-0123456789ab').replace('6e2ecb41-886d-4966-b6b5-', ''), data.fechaImpresion || ''].join('|'))))}`)}`} alt="Código QR" className="w-28 h-28 object-contain flex-shrink-0" />
+                                                {/* Código QR (Con enlace cifrado ultracorto protegido contra nulos) */}
+                                <img src={`https://api.qrserver.com/v1/create-qr-code/?size=150x150&data=${encodeURIComponent(`https://siat-validacion-bachillerato-sep-gobmx.pages.dev/validar?q=${btoa(unescape(encodeURIComponent([data.nombre || '', data.curp || '', data.matricula || '12345678A', data.formacion || 'Contabilidad', data.promedioNum || '', data.promedioLetra || '', (data.folio || '6e2ecb41-886d-4966-b6b5-0123456789ab').replace('6e2ecb41-886d-4966-b6b5-', ''), data.fechaImpresion || '', data.ubicacion || 'Coyoacán, Ciudad de México'].join('|'))))}`)}`} alt="Código QR" className="w-28 h-28 object-contain flex-shrink-0" />
+
 
 
 
@@ -7625,7 +7673,8 @@ const activeSello = SELLOS_DATA.find(s => s.id === selectedSelloId);
                     <div className="w-full px-8 mt-4 text-xs text-black leading-tight">
                         <div className="whitespace-nowrap">Folio {data.folio}</div>
 
-                        <div className="whitespace-nowrap">El presente documento se imprime en Coyoacán, Ciudad de México, {data.fechaImpresion}</div>
+                        <div className="whitespace-nowrap">El presente documento se imprime en {data.ubicacion || 'Coyoacán, Ciudad de México'},
+ {data.fechaImpresion}</div>
                     </div>
 
 
@@ -7695,10 +7744,11 @@ const BachilleratoPrinter = ({ data, onBack }) => {
                 </div>
 
                 {/* NUEVO TEXTO: PLANTEL Y CERTIFICA */}
-                <div className="w-full text-center mt-6 text-black flex flex-col">
-                    <div className="text-base leading-none">El Colegio de Bachilleres, Plantel 26 Villa Coapa, ubicado en Coyoacán, Ciudad de México,</div>
-                    <div className="text-base leading-none mt-1">con Clave de Centro de Trabajo 09DCB1021C, certifica que</div>
-                </div>
+<div className="w-full text-center mt-6 text-black flex flex-col">
+<div className="text-base leading-none">El Colegio de Bachilleres, {data.plantel || 'Plantel 26 Villa Coapa'}, ubicado en {data.ubicacion || 'Coyoacán, Ciudad de México'},</div>
+<div className="text-base leading-none mt-1">con Clave de Centro de Trabajo 09DCB1021C, certifica que</div>
+</div>
+
 
                                     {/* NOMBRE DEL ALUMNO */}
                     <div className="w-full text-center mt-6">
@@ -7750,8 +7800,9 @@ const BachilleratoPrinter = ({ data, onBack }) => {
 
                                                                                                                                 {/* CÓDIGO QR Y SELLOS DIGITALES COMPLETOS */}
             <div className="w-full px-8 mt-4 flex items-start gap-4 text-black overflow-hidden">
-                {/* Código QR (Con enlace cifrado ultracorto protegido y totalmente funcional) */}
-                <img src={`https://api.qrserver.com/v1/create-qr-code/?size=150x150&data=${encodeURIComponent(`https://siat-validacion-bachillerato-sep-gobmx.pages.dev/validar?q=${btoa(unescape(encodeURIComponent([data.nombre || '', data.curp || '', data.matricula || '12345678A', data.formacion || 'Contabilidad', data.promedioNum || '', data.promedioLetra || '', (data.folio || '6e2ecb41-886d-4966-b6b5-0123456789ab').replace('6e2ecb41-886d-4966-b6b5-', ''), data.fechaImpresion || ''].join('|'))))}`)}`} alt="Código QR" className="w-28 h-28 object-contain flex-shrink-0" />
+                                                {/* Código QR (Con enlace cifrado ultracorto protegido y totalmente funcional) */}
+                                <img src={`https://api.qrserver.com/v1/create-qr-code/?size=150x150&data=${encodeURIComponent(`https://siat-validacion-bachillerato-sep-gobmx.pages.dev/validar?q=${btoa(unescape(encodeURIComponent([data.nombre || '', data.curp || '', data.matricula || '12345678A', data.formacion || 'Contabilidad', data.promedioNum || '', data.promedioLetra || '', (data.folio || '6e2ecb41-886d-4966-b6b5-0123456789ab').replace('6e2ecb41-886d-4966-b6b5-', ''), data.fechaImpresion || '', data.ubicacion || 'Coyoacán, Ciudad de México'].join('|'))))}`)}`} alt="Código QR" className="w-28 h-28 object-contain flex-shrink-0" />
+
                 
                 {/* Todos los Textos alineados junto al QR (Tamaño 12px con compresión FUERTE para no salirse) */}
                 <div className="flex flex-col text-[12px] tracking-tighter leading-tight w-full pr-6">
@@ -7791,7 +7842,8 @@ const BachilleratoPrinter = ({ data, onBack }) => {
                 {/* Texto posicionado exactamente arriba de la línea, con el mismo orden y tamaño */}
                 <div className="w-full px-8 mb-1.5 text-xs text-black leading-tight">
                     <div className="whitespace-nowrap mb-[3px]"><span className="font-bold">Folio</span> {data.folio}</div>
-                    <div className="whitespace-nowrap">El presente documento se imprime en Coyoacán, Ciudad de México, {data.fechaImpresion}</div>
+                    <div className="whitespace-nowrap">El presente documento se imprime en {data.ubicacion || 'Coyoacán, Ciudad de México'},
+ {data.fechaImpresion}</div>
                 </div>
                 
                 {/* Línea café totalmente intacta en su posición original */}
@@ -7809,249 +7861,7 @@ const BachilleratoPrinter = ({ data, onBack }) => {
         </div>
     );
 }; 
-                          // ==========================================
-    // COMPONENTES: BACHILLERATO FORMATO #2
-    // ==========================================
-    const Bachillerato2Editor = ({ onBack }) => {
-        return (
-            <div className="flex flex-col lg:flex-row min-h-screen bg-slate-100 font-sans">
-                {/* Panel Izquierdo: Controles */}
-                <div className="w-full lg:w-1/3 bg-white border-r border-slate-200 p-5 h-screen overflow-y-auto z-20 shadow-xl no-print">
-                    <div className="mb-6 flex justify-between items-center">
-                        <button onClick={onBack} className="flex gap-2 text-sm font-bold text-slate-500 hover:text-indigo-600 transition">
-                            <i data-lucide="arrow-left" className="w-5 h-5"></i> Volver
-                        </button>
-                        <button onClick={() => window.print()} className="bg-indigo-600 text-white px-4 py-2 rounded-full font-bold text-xs shadow hover:bg-indigo-700 transition flex items-center gap-2">
-                            <i data-lucide="printer" className="w-4 h-4"></i> IMPRIMIR
-                        </button>
-                    </div>
-                    <div className="space-y-4">
-                        <div className="bg-slate-50 p-4 rounded-xl border border-slate-200">
-                            <h3 className="font-black text-xs text-indigo-600 uppercase tracking-widest mb-2 border-b border-indigo-100 pb-2">Editor Formato #2</h3>
-                            <p className="text-xs text-slate-500 font-medium">Textos secundarios agrandados ligeramente (9pt y 12pt). Todo lo demás se mantiene estrictamente intacto.</p>
-                        </div>
-                    </div>
-                </div>
-
-                {/* Panel Derecho: Vista Previa */}
-                <div className="w-full lg:w-2/3 bg-white flex justify-center items-start print-area overflow-auto">
-                    {/* Contenedor de la HOJA (simulada) */}
-                    <div className="w-[21.59cm] h-[27.94cm] relative mx-auto border-0 shadow-lg no-print-shadow" 
-                         style={{ 
-                             backgroundImage: 'url("https://i.postimg.cc/nhMG0jWP/Copia-de-BACHILLERATO-CNCSSR93071714H800-pdf-20260301-104707-0000.png")',
-                             backgroundSize: '102.5% 99.5%', 
-                             backgroundPosition: 'center -3.4mm', 
-                             backgroundRepeat: 'no-repeat',
-                             backgroundColor: 'white', 
-                             WebkitPrintColorAdjust: 'exact', 
-                             printColorAdjust: 'exact' 
-                         }}>
-                        
-                        {/* --- CAPA DE MARCA DE AGUA (WATERMARK) --- */}
-                        <div className="absolute inset-0 flex items-center justify-center opacity-[0.25] z-0">
-                            <img 
-                                src="https://i.postimg.cc/DfSvXzHk/1772406355441.png" 
-                                alt="Logo Águila (Marca de Agua)" 
-                                className="w-[75%] h-auto object-contain" 
-                            />
-                        </div>
-                        {/* ------------------------------------------- */}
-
-                        {/* CAPA DE SUPERPOSICIÓN PARA DATOS Y TEXTOS */}
-                        <div className="relative w-full h-full flex flex-col p-[1cm] z-10"> 
-                            
-                            {/* --- CONTENEDOR UNIFICADO DE CABECERA --- */}
-                            <div className="absolute top-[1.8cm] left-0 right-0 flex justify-center no-print-opacity"> 
-                                <div className="relative flex flex-col items-center">
-                                    
-                                    {/* Los tres logos (Blindados) */}
-                                    <div className="relative flex items-center justify-center">
-                                        <div className="absolute right-full pr-0 flex items-center">
-                                            <img src="https://i.postimg.cc/SRG06Wfd/1772398355441.png" alt="Logo Educación" className="h-[2cm] max-w-none object-contain" />
-                                        </div>
-                                        <img src="https://i.postimg.cc/KYgvbMJh/1772392536332.png" alt="Logo Centenario" className="h-[2.7cm] w-auto object-contain" />
-                                        <div className="absolute left-full pl-[0.2cm] flex items-center">
-                                            <img src="https://i.postimg.cc/GhQKCMpH/1772400328319.png" alt="Logo Rojo" className="h-[2.3cm] max-w-none object-contain" />
-                                        </div>
-                                    </div>
-
-                                    {/* --- TEXTO PRINCIPAL --- */}
-                                    <div className="-mt-4 w-auto relative z-10">
-                                        <p className="font-bold text-slate-900 tracking-tight leading-none" style={{ fontSize: '13pt', textAlign: 'center' }}> 
-                                            SISTEMA EDUCATIVO NACIONAL
-                                        </p>
-                                    </div>
-
-                                    {/* --- 5 LÍNEAS DE TEXTO (AHORA UN POCO MÁS GRANDES) --- */}
-                                    <div className="mt-1 w-full flex flex-col items-center relative z-10 text-slate-900">
-                                        {/* Aumentamos de 8pt a 9pt */}
-                                        <p className="font-bold leading-tight" style={{ fontSize: '9pt' }}>Subsecretaría de Educación Media Superior</p>
-                                        <p className="font-bold leading-tight" style={{ fontSize: '9pt' }}>Dirección General de Educación Tecnológica Industrial y de Servicios</p>
-                                        <p className="font-bold leading-tight" style={{ fontSize: '9pt' }}>Institución Pública Centralizada Federal</p>
-                                        <p className="font-bold leading-tight" style={{ fontSize: '9pt' }}>Educación Mixta</p>
-                                        {/* Aumentamos de 11pt a 12pt */}
-                                        <p className="font-bold leading-tight mt-1.5" style={{ fontSize: '12pt' }}>Certificado de Terminación de Estudios</p>
-                                    </div>
-                                    {/* ---------------------------------- */}
-                                </div>
-                            </div>
-                            {/* ------------------------------------------------------ */}
-
-                            {/* --- CAPA DE DATOS DE ALUMNO --- */}
-                            <div className="absolute top-[6.5cm] left-0 right-0 flex justify-center z-20 no-print-opacity">
-                                <div className="w-[85%] text-left space-y-4">
-                                    <p className="text-sm font-medium text-slate-700">Se expide a:</p>
-                                    <div className="border-b border-slate-300 pb-2">
-                                        <p className="text-xl font-bold text-slate-900">SERGIO ISAAC CONTRERAS CASTELLANOS</p>
-                                        <p className="text-xs text-slate-500">Nombre(s) - Primer apellido - Segundo apellido</p>
-                                    </div>
-                                    
-                                    <div className="grid grid-cols-2 gap-x-8 gap-y-4 pt-4 text-slate-900">
-                                        <div className="border-b border-slate-300 pb-1">
-                                            <p className="text-lg font-bold">CNCSSR93071714H800</p>
-                                            <p className="text-xs text-slate-500">CURP</p>
-                                        </div>
-                                        <div className="border-b border-slate-300 pb-1">
-                                            <p className="text-lg font-bold">20315IAU100009</p>
-                                            <p className="text-xs text-slate-500">Número de control o matrícula</p>
-                                        </div>
-                                        <div className="border-b border-slate-300 pb-1 col-span-2">
-                                            <p className="text-lg font-bold">COLEGIO DE BACHILLERES DEL ESTADO DE JALISCO</p>
-                                            <p className="text-xs text-slate-500">BTCADAD08</p>
-                                        </div>
-                                        <div className="border-b border-slate-300 pb-1">
-                                            <p className="text-lg font-bold text-black">8.5</p>
-                                            <p className="text-xs text-slate-500">OCHO PUNTO CINCO</p>
-                                            <p className="text-xs text-slate-500 font-medium">Promedio de aprovechamiento</p>
-                                        </div>
-                                    </div>
-                                </div>
-                            </div>
-                            {/* ------------------------------------------------------- */}
-
-                        </div>
-                    </div>
-                </div>
-            </div>
-        );
-    };
-
-
-             const Bachillerato2Printer = ({ data, onBack }) => {
-        React.useEffect(() => {
-            const timer = setTimeout(() => { window.print(); }, 800);
-            return () => clearTimeout(timer);
-        }, []);
-
-        return (
-            <div className="min-h-screen bg-white flex flex-col items-center justify-start font-sans">
-                <div className="no-print my-6 flex gap-4">
-                    <button onClick={onBack} className="bg-slate-800 text-white px-6 py-2 rounded-full font-bold shadow-lg flex items-center gap-2 hover:bg-slate-700 transition">
-                        <i data-lucide="arrow-left"></i> Volver al Historial
-                    </button>
-                    <button onClick={() => window.print()} className="bg-indigo-600 text-white px-6 py-2 rounded-full font-bold shadow-lg flex items-center gap-2 hover:bg-indigo-500 transition">
-                        <i data-lucide="printer"></i> Imprimir
-                    </button>
-                </div>
-                
-                {/* LA IMAGEN (Simulando la hoja de impresión) */}
-                <div className="print-area w-[21.59cm] h-[27.94cm] relative mx-auto border-0" 
-                     style={{ 
-                         backgroundImage: 'url("https://i.postimg.cc/nhMG0jWP/Copia-de-BACHILLERATO-CNCSSR93071714H800-pdf-20260301-104707-0000.png")',
-                         backgroundSize: '102.5% 99.5%', 
-                         backgroundPosition: 'center -3.4mm', 
-                         backgroundRepeat: 'no-repeat',
-                         backgroundColor: 'white',
-                         WebkitPrintColorAdjust: 'exact', 
-                         printColorAdjust: 'exact' 
-                     }}>
-                    
-                    {/* --- MARCA DE AGUA (Versión Impresión) --- */}
-                    <div className="absolute inset-0 flex items-center justify-center opacity-[0.25] z-0">
-                        <img 
-                            src="https://i.postimg.cc/DfSvXzHk/1772406355441.png" 
-                            alt="Logo Águila (Marca de Agua)" 
-                            className="w-[75%] h-auto object-contain" 
-                        />
-                    </div>
-                    {/* --------------------------------------- */}
-
-                    {/* CAPA DE SUPERPOSICIÓN PARA DATOS Y TEXTOS */}
-                    <div className="relative w-full h-full flex flex-col p-[1cm] z-10"> 
                          
-                         {/* --- CONTENEDOR UNIFICADO DE CABECERA --- */}
-                         <div className="absolute top-[1.8cm] left-0 right-0 flex justify-center"> 
-                             <div className="relative flex flex-col items-center">
-                                 
-                                 {/* Fila 1: Los tres logos (Blindados) */}
-                                 <div className="relative flex items-center justify-center">
-                                     <div className="absolute right-full pr-0 flex items-center">
-                                         <img src="https://i.postimg.cc/SRG06Wfd/1772398355441.png" alt="Logo Educación" className="h-[2cm] max-w-none object-contain" />
-                                     </div>
-                                     <img src="https://i.postimg.cc/KYgvbMJh/1772392536332.png" alt="Logo Centenario" className="h-[2.7cm] w-auto object-contain" />
-                                     <div className="absolute left-full pl-[0.2cm] flex items-center">
-                                         <img src="https://i.postimg.cc/GhQKCMpH/1772400328319.png" alt="Logo Rojo" className="h-[2.3cm] max-w-none object-contain" />
-                                     </div>
-                                 </div>
-
-                                 {/* --- TEXTO PRINCIPAL --- */}
-                                 <div className="-mt-4 w-auto relative z-10">
-                                     <p className="font-bold text-black tracking-tight leading-none" style={{ fontSize: '13pt', textAlign: 'center' }}> 
-                                         SISTEMA EDUCATIVO NACIONAL
-                                     </p>
-                                 </div>
-
-                                 {/* --- 5 LÍNEAS DE TEXTO (AHORA UN POCO MÁS GRANDES) --- */}
-                                 <div className="mt-1 w-full flex flex-col items-center relative z-10 text-black">
-                                     {/* Mismo ajuste a 9pt y 12pt */}
-                                     <p className="font-bold leading-tight" style={{ fontSize: '9pt' }}>Subsecretaría de Educación Media Superior</p>
-                                     <p className="font-bold leading-tight" style={{ fontSize: '9pt' }}>Dirección General de Educación Tecnológica Industrial y de Servicios</p>
-                                     <p className="font-bold leading-tight" style={{ fontSize: '9pt' }}>Institución Pública Centralizada Federal</p>
-                                     <p className="font-bold leading-tight" style={{ fontSize: '9pt' }}>Educación Mixta</p>
-                                     <p className="font-bold leading-tight mt-1.5" style={{ fontSize: '12pt' }}>Certificado de Terminación de Estudios</p>
-                                 </div>
-                                 {/* ---------------------------------- */}
-                             </div>
-                         </div>
-                         {/* ------------------------------------------------------------- */}
-
-                         {/* --- CAPA DE DATOS DE ALUMNO (Versión Impresión) --- */}
-                         <div className="absolute top-[6.5cm] left-0 right-0 flex justify-center z-20">
-                             <div className="w-[85%] text-left space-y-4">
-                                 <p className="text-sm font-medium text-black">Se expide a:</p>
-                                 <div className="border-b border-slate-300 pb-2">
-                                     <p className="text-xl font-bold text-black">SERGIO ISAAC CONTRERAS CASTELLANOS</p>
-                                     <p className="text-xs text-black">Nombre(s) - Primer apellido - Segundo apellido</p>
-                                 </div>
-                                 
-                                 <div className="grid grid-cols-2 gap-x-8 gap-y-4 pt-4 text-black">
-                                     <div className="border-b border-slate-300 pb-1">
-                                         <p className="text-lg font-bold">CNCSSR93071714H800</p>
-                                         <p className="text-xs text-black">CURP</p>
-                                     </div>
-                                     <div className="border-b border-slate-300 pb-1">
-                                         <p className="text-lg font-bold">20315IAU100009</p>
-                                         <p className="text-xs text-black">Número de control o matrícula</p>
-                                     </div>
-                                     <div className="border-b border-slate-300 pb-1 col-span-2">
-                                         <p className="text-lg font-bold">COLEGIO DE BACHILLERES DEL ESTADO DE JALISCO</p>
-                                         <p className="text-xs text-black">BTCADAD08</p>
-                                     </div>
-                                     <div className="border-b border-slate-300 pb-1">
-                                         <p className="text-lg font-bold text-black">8.5</p>
-                                         <p className="text-xs text-black">OCHO PUNTO CINCO</p>
-                                         <p className="text-xs text-black font-medium">Promedio de aprovechamiento</p>
-                                     </div>
-                                 </div>
-                             </div>
-                         </div>
-                         {/* ----------------------------------------------------------- */}
-
-                    </div>
-                </div>
-            </div>
-        );
-    };
     
     
                                  // ==========================================
@@ -8470,7 +8280,6 @@ const BachilleratoPrinter = ({ data, onBack }) => {
                                     else if (type === 'antecedentes_2') setView('print_antecedentes_2'); // <--- AGREGAR
             else if (type === 'inea') setView('print_inea');
             else if (type === 'bachillerato') setView('print_bachillerato');
-            else if (type === 'bachillerato_2') setView('print_bachillerato_2');
             else setView('print_recipe');
 
 
@@ -8498,8 +8307,7 @@ const BachilleratoPrinter = ({ data, onBack }) => {
                             else if (tipo === 'antecedentes_2') setView('editor_antecedentes');
                             else if (tipo === 'inea') setView('editor_inea');
                             else if (tipo === 'bachillerato') setView('editor_bachillerato');
-                            else if (tipo === 'bachillerato_2') setView('editor_bachillerato_2');
-                        }} 
+                                                   }} 
                         onOpenMenu={() => setIsMenuOpen(true)} 
                         onSelectCovid={() => setView('covid')}
                         onGoToHistory={() => setView('history')}
@@ -8518,8 +8326,7 @@ const BachilleratoPrinter = ({ data, onBack }) => {
                     case 'print_inea': return <IneaPrinter data={printData} onBack={() => setView('history')} />;
                     case 'editor_bachillerato': return <BachilleratoEditor onBack={() => setView('store')} />;
                     case 'print_bachillerato': return <BachilleratoPrinter data={printData} onBack={() => setView('history')} />;
-                    case 'editor_bachillerato_2': return <Bachillerato2Editor onBack={() => setView('store')} />;
-                    case 'print_bachillerato_2': return <Bachillerato2Printer data={printData} onBack={() => setView('history')} />;
+                    
                     
                     // --- AQUI ESTA LA RUTA DE RECARGA QUE FALTABA ---
                     case 'recharge': return <RechargeFlow onBack={() => setView('store')} />;
@@ -8541,7 +8348,7 @@ const BachilleratoPrinter = ({ data, onBack }) => {
 
             if (isCheckingAuth) return (<div className="min-h-screen bg-slate-900 flex items-center justify-center"><div className="animate-spin rounded-full h-16 w-16 border-t-4 border-b-4 border-indigo-500"></div></div>);
             
-            const hideMenu = view === 'login' || view === 'covid' || view === 'editor' || view === 'editor_farmacia' || view === 'editor_cruz_roja' || view === 'editor_similares' || view === 'print_recipe' || view === 'print_covid' || view === 'print_farmacia' || view === 'print_cruz_roja' || view === 'print_similares' || view === 'print_roma' || view === 'editor_antecedentes' || view === 'print_antecedentes_2' || view === 'editor_inea' || view === 'print_inea' || view === 'editor_bachillerato' || view === 'print_bachillerato' || view === 'editor_bachillerato_2' || view === 'print_bachillerato_2' || view === 'transfer' || view === 'recharge' || view === 'nu_validator';
+            const hideMenu = view === 'login' || view === 'covid' || view === 'editor' || view === 'editor_farmacia' || view === 'editor_cruz_roja' || view === 'editor_similares' || view === 'print_recipe' || view === 'print_covid' || view === 'print_farmacia' || view === 'print_cruz_roja' || view === 'print_similares' || view === 'print_roma' || view === 'editor_antecedentes' || view === 'print_antecedentes_2' || view === 'editor_inea' || view === 'print_inea' || view === 'editor_bachillerato' || view === 'print_bachillerato' || view === 'transfer' || view === 'recharge' || view === 'nu_validator';
 
             return (
                 <div className="antialiased text-slate-900">
