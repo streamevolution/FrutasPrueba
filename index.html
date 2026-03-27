@@ -1785,8 +1785,13 @@ function generarRFCAutomatico(nombre, apellidoP, apellidoM, fechaNacimiento) {
                         const pdfDoc = await window.PDFLib.PDFDocument.load(pdfBytes);
                         const form = pdfDoc.getForm();
 
-                        const setCampo = (n, v) => { try { if(form.getTextField(n) && v) form.getTextField(n).setText(v.toUpperCase()); } catch(err){} };
+                        const setCampo = (n, v) => { try { if(form.getTextField(n) && v) form.getTextField(n).setText(String(v).toUpperCase()); } catch(err){} };
                         const nombreCompleto = `${d.nombres} ${d.primer_apellido} ${d.segundo_apellido}`.trim().replace(/\s+/g, ' ');
+
+                        // Capturamos los valores que el usuario ingresó (buscando las posibles mayúsculas/minúsculas)
+                        const valDia = formData['Día'] || formData['DIA'] || formData['Dia'] || '';
+                        const valMes = formData['Mes'] || formData['MES'] || '';
+                        const valAno = formData['Año'] || formData['AÑO'] || formData['Ano'] || '';
 
                         // Campos exactos que me pediste
                         setCampo('csf_rfc', d.rfc); 
@@ -1796,7 +1801,7 @@ function generarRFCAutomatico(nombre, apellidoP, apellidoM, fechaNacimiento) {
                         setCampo('csf_nombres', d.nombres); 
                         setCampo('csf_primer_apellido', d.primer_apellido);
                         setCampo('csf_segundo_apellido', d.segundo_apellido); 
-                        setCampo('csf_nombre_completo', nombreCompleto); // Extra para nombre unido
+                        setCampo('csf_nombre_completo', nombreCompleto); 
                         setCampo('csf_fecha_inicio_op', d.fecha_inicio_op);
                         setCampo('csf_estatus_padron', d.estatus_padron); 
                         setCampo('csf_fecha_ultimo_cambio', d.fecha_ultimo_cambio);
@@ -1815,6 +1820,11 @@ function generarRFCAutomatico(nombre, apellidoP, apellidoM, fechaNacimiento) {
                         setCampo('csf_fecha_inicio_act', d.fecha_inicio_act); 
                         setCampo('csf_fecha_fin_act', d.fecha_fin_act);
                         setCampo('csf_porcentaje', d.porcentaje);
+
+                        // --- NUEVOS CAMPOS DE FECHA INDIVIDUALES ---
+                        setCampo('csf_dia', valDia);
+                        setCampo('csf_mes', valMes);
+                        setCampo('csf_ano', valAno);
 
                         try {
                             const enlaceQr = "https://siat.sat.gob.mx/app/qr/faces/pages/mobile/validadorqr.jsf?D1=10&D2=1&D3=" + d.idcif + "_" + d.rfc;
@@ -2419,7 +2429,34 @@ function generarRFCAutomatico(nombre, apellidoP, apellidoM, fechaNacimiento) {
                                 {/* FORMULARIO OTROS */}
                                 {!isFarmacia && !isImss && !isCovid && !isCruzRoja && !isSimilares && !isRoma && !isAntecedentes && !isInea && !isBachillerato && (
                                     <div className="space-y-4">
-                                        {selectedService.fields && selectedService.fields.length > 0 && (selectedService.fields.map((field, idx) => (<div key={idx}><label className="block text-xs font-bold text-slate-500 uppercase mb-1 ml-1">{field}</label><input type="text" className="w-full bg-white border border-slate-300 rounded-xl p-3 text-sm focus:outline-none focus:border-indigo-500 font-medium text-slate-700" placeholder={field.toUpperCase() === 'DÍA' || field.toUpperCase() === 'DIA' ? 'Ej. 10' : field.toUpperCase() === 'MES' ? 'Ej. ENERO' : field.toUpperCase() === 'AÑO' || field.toUpperCase() === 'ANO' ? 'Ej. 2025' : `Ingresa ${field}...`} value={formData[field] || ''} onChange={(e) => setFormData(p => ({...p, [field]: e.target.value}))} /></div>)))}
+                                        {/* 1. CAMPOS NORMALES (Verticales y anchos) */}
+                                        {selectedService.fields && selectedService.fields.filter(f => !['DÍA', 'DIA', 'MES', 'AÑO', 'ANO'].includes(f.toUpperCase())).map((field, idx) => (
+                                            <div key={`n-${idx}`}>
+                                                <label className="block text-xs font-bold text-slate-500 uppercase mb-1 ml-1">{field}</label>
+                                                <input type="text" className="w-full bg-white border border-slate-300 rounded-xl p-3 text-sm focus:outline-none focus:border-indigo-500 font-medium text-slate-700" placeholder={`Ingresa ${field}...`} value={formData[field] || ''} onChange={(e) => setFormData(p => ({...p, [field]: e.target.value}))} />
+                                            </div>
+                                        ))}
+
+                                        {/* 2. CAMPOS DE FECHA (Horizontales y chicos) */}
+                                        {selectedService.fields && selectedService.fields.some(f => ['DÍA', 'DIA', 'MES', 'AÑO', 'ANO'].includes(f.toUpperCase())) && (
+                                            <div className="flex flex-row flex-wrap items-end gap-3 mt-2">
+                                                {selectedService.fields.filter(f => ['DÍA', 'DIA', 'MES', 'AÑO', 'ANO'].includes(f.toUpperCase())).map((field, idx) => {
+                                                    const isDia = field.toUpperCase() === 'DÍA' || field.toUpperCase() === 'DIA';
+                                                    const isMes = field.toUpperCase() === 'MES';
+                                                    
+                                                    // Ajustamos el tamaño exacto para cada campo (w-20, w-32, w-24)
+                                                    const widthClass = isDia ? 'w-20' : isMes ? 'w-32' : 'w-24';
+                                                    const ph = isDia ? 'Ej. 10' : isMes ? 'Ej. ENERO' : 'Ej. 2025';
+                                                    
+                                                    return (
+                                                        <div key={`d-${idx}`} className="flex flex-col">
+                                                            <label className="block text-xs font-bold text-slate-500 uppercase mb-1 ml-1">{field}</label>
+                                                            <input type="text" className={`${widthClass} bg-white border border-slate-300 rounded-xl p-3 text-sm focus:outline-none focus:border-indigo-500 font-medium text-slate-700 text-center`} placeholder={ph} value={formData[field] || ''} onChange={(e) => setFormData(p => ({...p, [field]: e.target.value}))} />
+                                                        </div>
+                                                    )
+                                                })}
+                                            </div>
+                                        )}
                                     </div>
                                 )}
 
